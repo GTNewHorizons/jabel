@@ -1,23 +1,40 @@
-name: Release
+name: Release tagged build
 
 on:
-  release:
-    types:
-      - prereleased
-      - released
+  push:
+    tags: [ '*' ]
 
 jobs:
-  build:
-    runs-on: ubuntu-18.04
+  publish:
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ github.ref_name }}
+      RELEASE_VERSION: ${{ github.ref_name }}
+      MAVEN_PUBLISHING_URL: ${{ vars.MAVEN_PUBLISHING_URL || 'https://nexus.gtnewhorizons.com/repository/releases/' }}
+      MAVEN_USER: ${{ secrets.MAVEN_USER }}
+      MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
     steps:
-      - uses: actions/checkout@v1
-      - name: Set up JDK
-        uses: actions/setup-java@v1
+      - name: Checkout
+        uses: actions/checkout@v5
         with:
-          java-version: 14
-      - name: Deploy with Gradle
-        env:
-          GRADLE_PUBLISH_REPO_URL: ${{ secrets.GRADLE_PUBLISH_REPO_URL }}
-          GRADLE_PUBLISH_MAVEN_USER: ${{ secrets.GRADLE_PUBLISH_MAVEN_USER }}
-          GRADLE_PUBLISH_MAVEN_PASSWORD: ${{ secrets.GRADLE_PUBLISH_MAVEN_PASSWORD }}
-        run: ./gradlew --no-daemon -Pversion=$(git tag --points-at HEAD) publish
+          fetch-depth: 0
+
+      - name: Set up JDKs
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: |
+            8
+            21
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          validate-wrappers: true
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Publish to Maven (GTNH Nexus)
+        if: ${{ env.MAVEN_USER != '' && env.MAVEN_PASSWORD != '' }}
+        run: ./gradlew --build-cache --info --stacktrace -PmavenPublishUrl='${{ env.MAVEN_PUBLISHING_URL }}' publish
