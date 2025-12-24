@@ -2,19 +2,40 @@ subprojects {
     apply from: "$rootDir/gradle/publishing.gradle"
 
     group = 'com.github.bsideup.jabel'
+    version = (
+            System.getenv('RELEASE_VERSION')
+                    ?: (System.getenv('VERSION')
+                    ?: (findProperty('version') ?: '0.0.0-SNAPSHOT'))
+    )
     repositories {
         jcenter()
     }
 
     plugins.withType(MavenPublishPlugin) {
+        def publishGroup = (
+                System.getenv('ARTIFACT_GROUP_ID') ?: 'com.github.GTNewHorizons'
+        )
+        def publishUrl = (
+                findProperty('mavenPublishUrl') ?: (System.getenv('MAVEN_PUBLISHING_URL') ?: 'https://nexus.gtnewhorizons.com/repository/releases/')
+        )
+        def publishUser = System.getenv('MAVEN_USER')
+        def publishPassword = System.getenv('MAVEN_PASSWORD')
+
         project.publishing {
+            publications.withType(MavenPublication) { pub ->
+                pub.groupId = publishGroup
+            }
             repositories {
-                maven {
-                    url System.getenv('GRADLE_PUBLISH_REPO_URL')
-                    credentials {
-                        username = System.getenv('GRADLE_PUBLISH_MAVEN_USER')
-                        password = System.getenv('GRADLE_PUBLISH_MAVEN_PASSWORD')
+                if (publishUser && publishPassword) {
+                    maven {
+                        url publishUrl
+                        credentials {
+                            username = publishUser
+                            password = publishPassword
+                        }
                     }
+                } else {
+                    logger.lifecycle("Publishing disabled for '${project.path}': missing MAVEN_USER/MAVEN_PASSWORD")
                 }
             }
         }

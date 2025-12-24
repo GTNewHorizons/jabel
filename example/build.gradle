@@ -19,6 +19,27 @@ test {
     javaLauncher = javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(8)
     }
+
+    def pluginProject = project(":jabel-javac-plugin")
+    dependsOn(":jabel-javac-plugin:jar")
+
+    def pluginJarProvider = pluginProject.layout.buildDirectory.file("libs/jabel-javac-plugin.jar")
+    def jdk21JavacProvider = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }.map { it.executablePath.asFile }
+
+    // Used by RecordBytecodeTest to compile a record in a fresh javac process.
+    doFirst {
+        File pluginJar = pluginJarProvider.get().asFile
+        FileCollection pluginDeps = pluginProject.configurations.getByName("runtimeClasspath")
+        String pluginClasspath = files(pluginJar, pluginDeps).asPath
+
+        systemProperty "jabel.test.pluginClasspath", pluginClasspath
+        systemProperty "jabel.test.javac", jdk21JavacProvider.get().path
+    }
+
+    inputs.file(pluginJarProvider).withPropertyName("jabelPluginJar")
+    inputs.files(jdk21JavacProvider).withPropertyName("jabelJavac")
 }
 
 dependencies {
@@ -26,4 +47,5 @@ dependencies {
     compileOnly project(":jabel-javac-plugin")
 
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'net.bytebuddy:byte-buddy:1.14.9'
 }

@@ -14,7 +14,7 @@ dependencies {
 
 
 task sourcesJar(type: Jar) {
-    classifier 'sources'
+    archiveClassifier.set('sources')
     from sourceSets.main.allJava
 }
 
@@ -24,7 +24,7 @@ javadoc {
 
 task javadocJar(type: Jar) {
     from javadoc
-    classifier = 'javadoc'
+    archiveClassifier.set('javadoc')
 }
 
 publishing {
